@@ -12,9 +12,11 @@ Este repo ya trae:
 | Carpeta / archivo | Qué es |
 |---|---|
 | `dataset/` | Las 30 fotos de Ava + un `.txt` por foto con su descripción (ya escritas) |
-| `config/ava_zimage_turbo.yaml` | Ajustes del entrenamiento, pensados para una RTX 4080 de 16 GB |
+| `config/ava_zimage_turbo.yaml` | Ajustes del entrenamiento para tarjetas de **12–16 GB o más** (ej. RTX 4080) |
+| `config/ava_zimage_turbo_8gb.yaml` | Ajustes para tarjetas de **8 GB** (ej. RTX 3060 Ti, 3070, 4060) |
+| `CODEX_PROMPT.md` | Prompt listo para que **Codex** haga la instalación por ti |
 | `1_INSTALAR.bat` | Instala todo (doble clic) |
-| `2_ENTRENAR.bat` | Entrena el LoRA (doble clic) |
+| `2_ENTRENAR.bat` | Entrena el LoRA (doble clic). Detecta solo si tu tarjeta es de 8 o de 16 GB |
 | `3_VER_RESULTADOS.bat` | Abre la carpeta con los LoRA y las imágenes de prueba |
 
 Se usa **[AI-Toolkit de Ostris](https://github.com/ostris/ai-toolkit)**, la herramienta gratuita más
@@ -24,13 +26,32 @@ usada para entrenar LoRAs de Z-Image Turbo.
 
 ## Lo que necesitas
 
-- Windows 10/11 con tarjeta **NVIDIA** (probado pensando en una RTX 4080 de 16 GB; con menos de 12 GB no se recomienda).
+- Windows 10/11 con tarjeta **NVIDIA de 8 GB o más** de VRAM (memoria de video).
+  - **8–11 GB:** se usa la configuración de 8 GB (más lenta: 3–6 horas). **Necesita 32 GB de RAM** sí o sí,
+    porque parte del modelo se mueve a la RAM.
+  - **12 GB o más:** configuración normal (1.5–3 horas en una RTX 4080).
+  - Menos de 8 GB: no funciona.
 - **Unos 60 GB libres en el disco C:** (el programa ~10 GB + el modelo ~20 GB + resultados).
 - **32 GB de RAM** recomendados (con 16 GB puede ir muy lento o fallar).
 - Internet (la primera vez se descargan unos 30 GB en total).
 - 3–4 horas libres la primera vez (casi todo es esperar).
 
 ---
+
+## Opción B — Que lo instale Codex por ti
+
+Si tienes **Codex** (el asistente de OpenAI: app de escritorio, extensión de VS Code o `codex` en la terminal):
+
+1. Ábrelo en cualquier carpeta (por ejemplo el Escritorio).
+2. En los permisos elige **acceso completo / Full access** (si no, no puede descargar ni instalar en `C:\ai-toolkit`).
+3. Abre [`CODEX_PROMPT.md`](CODEX_PROMPT.md), copia el bloque completo y pégalo en Codex.
+4. Codex irá paso a paso y te pedirá confirmación entre cada paso. Responde "sigue" cuando esté bien.
+
+Si prefieres hacerlo tú mismo, sigue los pasos de abajo (Opción A).
+
+---
+
+## Opción A — Paso a paso a mano
 
 ## Paso 0 — Preparar la PC
 
@@ -46,7 +67,8 @@ git --version
 nvidia-smi
 ```
 
-Debe salir algo como `git version 2.x` y una tabla que diga **RTX 4080** con **16376MiB**.
+Debe salir algo como `git version 2.x` y una tabla con el nombre de tu tarjeta y su memoria
+(ej. **RTX 4080 … 16376MiB** o **RTX 4060 … 8188MiB**).
 Si `nvidia-smi` da error, el driver no está bien instalado.
 
 ---
@@ -68,7 +90,7 @@ con 60 archivos (30 `.png` y 30 `.txt`).
 2. El script:
    - descarga AI-Toolkit en `C:\ai-toolkit`,
    - copia las fotos a `C:\ai-toolkit\datasets\ava`,
-   - copia la configuración a `C:\ai-toolkit\config\ava_zimage_turbo.yaml`,
+   - copia las dos configuraciones (16 GB y 8 GB) a `C:\ai-toolkit\config\`,
    - instala Python, PyTorch y lo demás (**10–30 minutos**, no cierres la ventana negra).
 3. Al final se abre el navegador en `http://localhost:8675` (la interfaz web de AI-Toolkit).
 
@@ -91,17 +113,23 @@ Problemas típicos: sin espacio en disco, antivirus bloqueando la descarga, o dr
    ```
 
    - `360/3000` = paso actual de 3000.
-   - `1:10:12` = tiempo que falta (aprox.). En una RTX 4080 el total suele ser **1.5 – 3 horas**.
-4. **Cada 250 pasos** guarda un LoRA y genera 4 imágenes de prueba.
+   - `1:10:12` = tiempo que falta (aprox.). Total: **1.5 – 3 horas** con 16 GB, **3 – 6 horas** con 8 GB.
+   - Arriba del todo dice qué configuración eligió (`ava_zimage_turbo.yaml` o `ava_zimage_turbo_8gb.yaml`).
+4. **Cada 250 pasos** guarda un LoRA. Las 4 imágenes de prueba se generan cada 250 pasos (16 GB) o cada 500 (8 GB).
 
 ✅ **Comprueba (a los ~15 min):** la barra avanza y el número de pasos sube.
 Abre **`3_VER_RESULTADOS.bat`** → carpeta `samples`: verás las imágenes de prueba.
 
 - **Puedes pausar** con `Ctrl + C` (espera a que no diga "Saving"). Al abrir otra vez `2_ENTRENAR.bat`
   sigue donde se quedó.
-- ❌ **Si sale `CUDA out of memory`:** cierra todo lo demás (juegos, ComfyUI, Chrome con muchas pestañas) y
-  vuelve a abrir `2_ENTRENAR.bat`. Si sigue, abre `C:\ai-toolkit\config\ava_zimage_turbo.yaml` con el Bloc de notas,
-  cambia `resolution: [512, 768, 1024]` por `resolution: [512, 768]`, guarda y vuelve a entrenar.
+- ❌ **Si sale `CUDA out of memory`** (falta memoria en la tarjeta): cierra todo lo demás (juegos, ComfyUI,
+  Chrome con muchas pestañas) y vuelve a abrir `2_ENTRENAR.bat`. Si sigue:
+  - **Tarjeta de 12–16 GB:** usa la configuración de 8 GB. Abre `cmd` en la carpeta del repo y escribe
+    `2_ENTRENAR.bat 8gb`.
+  - **Tarjeta de 8 GB:** abre `C:\ai-toolkit\config\ava_zimage_turbo_8gb.yaml` con el Bloc de notas y cambia
+    `layer_offloading_transformer_percent: 0.6` por `0.8` (o `1.0`). Si aún falla, cambia
+    `resolution: [512, 768]` por `resolution: [512]`. Guarda y vuelve a abrir `2_ENTRENAR.bat`.
+- ❌ **Si la PC se queda sin RAM o va lentísima** con 8 GB: necesitas 32 GB de RAM; cierra todos los demás programas.
 
 ---
 
@@ -164,7 +192,9 @@ Normalmente el mejor está entre **2000 y 3000** pasos. Quédate con 2 o 3 candi
 - **Herramienta:** AI-Toolkit (Ostris), arquitectura `zimage:turbo` con el adaptador
   `ostris/zimage_turbo_training_adapter` (v2), que evita que el entrenamiento rompa la destilación de Turbo.
 - **LoRA:** rango 32 / alpha 32, AdamW 8-bit, lr 1e-4, 3000 pasos, batch 1, resoluciones 512/768/1024 con buckets.
-- **Memoria:** modelo y text encoder cuantizados a float8, `low_vram`, gradient checkpointing → cabe en 16 GB.
+- **Memoria (16 GB):** modelo y text encoder cuantizados a float8, `low_vram`, gradient checkpointing.
+- **Memoria (8 GB):** además rango 16, resoluciones 512/768 (sin 1024), text embeddings cacheados (el text encoder
+  sale de la VRAM) y `layer_offloading` del 60 % del transformer a la RAM. Muestras cada 500 pasos a 768×1152.
 - **Captions:** cada `.txt` empieza con la palabra clave `ava_lora` y describe solo lo que *cambia* entre fotos
   (ropa, lugar, pose, peinado, gafas, luz). Lo fijo de Ava (pelo rojo rizado, pecas, ojos verdes) **no** se describe,
   para que el LoRA lo asocie a `ava_lora`.

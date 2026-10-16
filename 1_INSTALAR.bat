@@ -50,18 +50,23 @@ copy /Y "%REPO%dataset\*.png" "%AITK%\datasets\ava\" >nul
 copy /Y "%REPO%dataset\*.txt" "%AITK%\datasets\ava\" >nul
 echo [OK] Fotos copiadas a %AITK%\datasets\ava
 
-REM ---- 5. Copiar la configuracion con la ruta correcta ----
+REM ---- 5. Copiar las configuraciones (16 GB y 8 GB) con la ruta correcta ----
 set "DS=%AITK:\=/%/datasets/ava"
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$t = [IO.File]::ReadAllText('%REPO%config\ava_zimage_turbo.yaml').Replace('__DATASET__','%DS%');" ^
-  "[IO.File]::WriteAllText('%AITK%\config\ava_zimage_turbo.yaml', $t, (New-Object Text.UTF8Encoding $false))"
-if errorlevel 1 (
-    echo [ERROR] No se pudo copiar la configuracion.
-    pause
-    exit /b 1
+for %%F in ("%REPO%config\*.yaml") do (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$t = [IO.File]::ReadAllText('%%~fF').Replace('__DATASET__','%DS%');" ^
+      "[IO.File]::WriteAllText('%AITK%\config\%%~nxF', $t, (New-Object Text.UTF8Encoding $false))"
+    if errorlevel 1 (
+        echo [ERROR] No se pudo copiar la configuracion %%~nxF
+        pause
+        exit /b 1
+    )
+    echo [OK] Configuracion copiada: %AITK%\config\%%~nxF
 )
-echo [OK] Configuracion copiada a %AITK%\config\ava_zimage_turbo.yaml
 echo.
+
+REM ---- Modo sin interfaz (para Codex u otros asistentes): 1_INSTALAR.bat sinui ----
+if /i "%~1"=="sinui" goto :sinui
 
 REM ---- 6. Instalar dependencias y abrir la interfaz ----
 echo ============================================================
@@ -74,3 +79,31 @@ echo   el navegador y esta ventana, y seguir con 2_ENTRENAR.bat
 echo ============================================================
 echo.
 call "%AITK%\run_windows.bat"
+exit /b
+
+:sinui
+echo Instalando dependencias sin abrir la interfaz web...
+set PYTHONPATH=
+set PYTHONHOME=
+set VIRTUAL_ENV=
+set CONDA_PREFIX=
+set "PY="
+for %%C in (python.exe py.exe) do (
+    if not defined PY (
+        %%C -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)" >nul 2>&1
+        if not errorlevel 1 set "PY=%%C"
+    )
+)
+if not defined PY (
+    echo [ERROR] No hay Python 3.9+ en el sistema. Instala Python 3.12
+    echo         ^(winget install -e --id Python.Python.3.12^) o usa: 1_INSTALAR.bat  sin parametros.
+    exit /b 1
+)
+cd /d "%AITK%"
+"%PY%" -m manager install
+if errorlevel 1 (
+    echo [ERROR] Fallo la instalacion. Revisa los mensajes de arriba.
+    exit /b 1
+)
+echo [OK] Instalacion terminada. Ahora ejecuta 2_ENTRENAR.bat
+exit /b 0
