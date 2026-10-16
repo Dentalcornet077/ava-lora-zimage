@@ -1,0 +1,77 @@
+# Configuracion de AI-Toolkit (Ostris) para entrenar el LoRA "Ava" en Z-Image Turbo.
+# Pensada para una RTX 4080 (16 GB de VRAM).
+# 1_INSTALAR.bat copia este archivo a C:\ai-toolkit\config\ y cambia __DATASET__
+# por la ruta real de las fotos. No hace falta editarlo a mano.
+---
+job: extension
+config:
+  # nombre de la carpeta de salida y de los archivos .safetensors
+  name: "ava_zimage_turbo_v1"
+  process:
+    - type: "diffusion_trainer"
+      training_folder: "output"
+      device: cuda
+      # palabra clave para activar al personaje en el prompt
+      trigger_word: "ava_lora"
+      network:
+        type: "lora"
+        linear: 32
+        linear_alpha: 32
+      save:
+        dtype: bf16
+        save_every: 250            # guarda una version del LoRA cada 250 pasos
+        max_step_saves_to_keep: 12 # conserva todas para elegir la mejor
+        save_format: diffusers
+      datasets:
+        - folder_path: "__DATASET__"
+          caption_ext: "txt"
+          caption_dropout_rate: 0.05
+          cache_latents_to_disk: true
+          resolution: [512, 768, 1024]
+          num_repeats: 1
+      train:
+        batch_size: 1
+        steps: 3000
+        gradient_accumulation: 1
+        train_unet: true
+        train_text_encoder: false
+        gradient_checkpointing: true
+        noise_scheduler: "flowmatch"
+        timestep_type: "weighted"
+        content_or_style: "balanced"
+        optimizer: "adamw8bit"
+        optimizer_params:
+          weight_decay: 0.0001
+        lr: 0.0001
+        unload_text_encoder: false
+        cache_text_embeddings: false
+        dtype: bf16
+      model:
+        # modelo base oficial (se descarga solo de Hugging Face, ~20 GB la primera vez)
+        name_or_path: "Tongyi-MAI/Z-Image-Turbo"
+        arch: "zimage:turbo"
+        # adaptador de Ostris: permite entrenar sobre Turbo sin "romper" la destilacion
+        assistant_lora_path: "ostris/zimage_turbo_training_adapter/zimage_turbo_training_adapter_v2.safetensors"
+        quantize: true
+        qtype: "qfloat8"
+        quantize_te: true
+        qtype_te: "qfloat8"
+        low_vram: true
+      sample:
+        sampler: "flowmatch"
+        sample_every: 250
+        width: 832
+        height: 1216
+        prompts:
+          - "ava_lora, a selfie of a young woman in a coffee shop, wearing a black turtleneck, soft smile"
+          - "ava_lora, a full body photo of a young woman walking in a park in autumn, wearing a beige trench coat"
+          - "ava_lora, a close-up portrait of a young woman, studio lighting, neutral gray background"
+          - "ava_lora, a photo of a young woman sitting on a couch reading a book, cozy living room, warm light"
+        neg: ""
+        seed: 42
+        walk_seed: true
+        guidance_scale: 1
+        sample_steps: 9
+meta:
+  name: "[name]"
+  version: "1.0"
